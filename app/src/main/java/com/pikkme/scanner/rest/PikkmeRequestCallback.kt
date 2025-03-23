@@ -3,6 +3,8 @@ package com.pikkme.scanner.rest
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.widget.ArrayAdapter
 import android.widget.ListView
@@ -18,6 +20,8 @@ import java.nio.charset.StandardCharsets
 
 
 class PikkmeRequestCallback(var context : Context) : UrlRequest.Callback() {
+
+
     override fun onRedirectReceived(
         request: UrlRequest?,
         info: org.chromium.net.UrlResponseInfo?,
@@ -30,6 +34,7 @@ class PikkmeRequestCallback(var context : Context) : UrlRequest.Callback() {
         Log.d("BarcodeScanner", "Response started")
         request?.read(ByteBuffer.allocateDirect(1024))
     }
+    val responseBuffer = StringBuilder()
 
     override fun onReadCompleted(
         request: UrlRequest?,
@@ -38,8 +43,19 @@ class PikkmeRequestCallback(var context : Context) : UrlRequest.Callback() {
     ) {
         Log.i("BarcodeScanner", "onReadCompleted")
         byteBuffer?.flip()
-        val responseData = StandardCharsets.UTF_8.decode(byteBuffer).toString()
-        Log.i("BarcodeScanner", "responseData  "+ responseData)
+        val bytes = ByteArray(byteBuffer!!.remaining())
+        byteBuffer.get(bytes)
+        responseBuffer.append(String(bytes)) // Append received data
+        byteBuffer.clear()
+        request!!.read(byteBuffer)
+
+        if (responseBuffer.contains("One or more sku's in the file does not exists in system.")) {
+            (context as ScanAndUpdateActivity).runOnUiThread {
+                showErrorDialog("One or more sku's does not exists in system.")
+            }
+            return
+        }
+        Log.i("BarcodeScanner", "responseData  "+ responseBuffer)
         (context as ScanAndUpdateActivity).runOnUiThread { showSuccessDialog() }
     }
 
@@ -52,20 +68,12 @@ class PikkmeRequestCallback(var context : Context) : UrlRequest.Callback() {
         info: org.chromium.net.UrlResponseInfo?,
         error: CronetException?
     ) {
-        Log.e("BarcodeScanner", "Error in processing request "+ error!!.message.toString())
-//        if (error.message!!.contains("ERR_CONNECTION_TIMED_OUT")) {
-//            Log.e("Cronet", "Connection timed out!")
-//            (context as Activity).runOnUiThread { showErrorDialog("Request timed out. Please check your internet connection and try again.") }
-//        } else {
-//            (context as Activity).runOnUiThread { showErrorDialog("An error occurred: " + error.message) }
-//        }
+        Log.e("BarcodeScanner", "Request failed: ${error!!.message}", error)
+        showErrorDialog("Request failed: ${error.message}")
     }
 
     private fun showSuccessDialog() {
-        val listView: ListView = (context as Activity).findViewById(R.id.listView)
-        val adapter : ArrayAdapter<PikkmeItem> = listView.adapter as ArrayAdapter<PikkmeItem>
-        adapter.clear()
-        adapter.notifyDataSetChanged()
+        clearView()
         AlertDialog.Builder(context)
             .setTitle("Success")
             .setMessage("The request was successful!")
@@ -73,11 +81,21 @@ class PikkmeRequestCallback(var context : Context) : UrlRequest.Callback() {
             .show()
     }
 
+    private fun clearView() {
+        val listView: ListView = (context as Activity).findViewById(R.id.listView)
+        val adapter : ArrayAdapter<PikkmeItem> = listView.adapter as ArrayAdapter<PikkmeItem>
+        adapter.clear()
+        adapter.notifyDataSetChanged()
+    }
+
+
     private fun showErrorDialog(msg: String) {
+        clearView()
         AlertDialog.Builder(context)
             .setTitle("Error")
             .setMessage(msg)
             .setPositiveButton("OK") { dialog, which -> dialog.dismiss() }
             .show()
     }
+
 }

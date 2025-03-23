@@ -12,6 +12,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
+import android.widget.EditText
 import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
@@ -63,6 +64,7 @@ class ScanAndUpdateActivity : AppCompatActivity() {
     private var isScanning = true
     private var successMediaPlayer: MediaPlayer? = null
     private var errorMediaPlayer: MediaPlayer? = null
+    private val timeoutHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -95,7 +97,7 @@ class ScanAndUpdateActivity : AppCompatActivity() {
             }
         })
         cronetBuilder = CronetEngine.Builder(this)
-        cronetEngine = cronetBuilder.enableQuic(false).enableHttp2(true).build()
+        cronetEngine = cronetBuilder.enableHttp2(false).enableQuic(false).build()
     }
 
 
@@ -117,34 +119,45 @@ class ScanAndUpdateActivity : AppCompatActivity() {
     }
 
     fun processData(v:View) {
+        if (listOfPikkmeItems.isEmpty()) {
+            showErrorDialog("Please scan some values to process !!!")
+            return
+        }
         val executor: Executor = Executors.newFixedThreadPool(2)
         when (operation) {
             "inbound" -> {
                 requestBuilder = cronetEngine.newUrlRequestBuilder(
-                    "http://192.168.0.102:5000/bulk_update_add_with_data",
+                    "http://ec2-13-235-83-46.ap-south-1.compute.amazonaws.com:5000/bulk_update_add_with_data",
                     PikkmeRequestCallback(this),
                     executor
                 )
             }
             "outbound" -> {
                 requestBuilder = cronetEngine.newUrlRequestBuilder(
-                    "http://192.168.0.102:5000/bulk_update_subtract_with_data",
+                    "http://ec2-13-235-83-46.ap-south-1.compute.amazonaws.com:5000/bulk_update_subtract_with_data",
                     PikkmeRequestCallback(this),
                     executor
                 )
             }
         }
         requestBuilder.setHttpMethod("POST")
-
         requestBuilder.addHeader("Content-Type", "application/json")
         // to be passed here
-        requestBuilder.addHeader("username", "")
-        requestBuilder.addHeader("token", "")
+        requestBuilder.addHeader("username", "username")
+        requestBuilder.addHeader("token", "TVZKV1pEZDFjekZzWkhad1NXcFFUemswWlhnNE5HcFVVR3R2WXpCU1NVSlRSM0ZSTUhwbk0ySklTM1UxV21SQk5rcFRabE5LTkd0d1MxcGpkSGRvWlE9PQ==")
         val jsonString = Gson().toJson(listOfPikkmeItems)
         Log.i("BarcodeScanner", jsonString)
         requestBuilder.setUploadDataProvider(UploadDataProviders.create(jsonString.toByteArray()),executor)
-        val request: UrlRequest = requestBuilder.build()
+        val request: UrlRequest = requestBuilder
+            .disableCache()
+            .allowDirectExecutor()
+            .build()
         request.start()
+        timeoutHandler.postDelayed({
+            request?.cancel()
+            Log.e("Cronet", "Request manually cancelled after timeout")
+            showErrorDialog("Request timed out")
+        }, 1000)
     }
 
     private fun requestCameraPermission() {
@@ -216,7 +229,7 @@ class ScanAndUpdateActivity : AppCompatActivity() {
         }
     }
 
-    fun processScannedResult( text: String?) {
+    fun processScannedResult(text:String?) {
         try {
             val itemVals = text!!.split(":")
             val sku = itemVals!!.get(0)
@@ -294,6 +307,14 @@ class ScanAndUpdateActivity : AppCompatActivity() {
                 finish()
             }
             .setNegativeButton("No", null)
+            .show()
+    }
+
+    private fun showErrorDialog(msg: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Error")
+            .setMessage(msg)
+            .setPositiveButton("OK") { dialog, which -> dialog.dismiss() }
             .show()
     }
 
