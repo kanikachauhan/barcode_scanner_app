@@ -42,25 +42,30 @@ class PikkmeRequestCallback(var context : Context) : UrlRequest.Callback() {
         byteBuffer: ByteBuffer?
     ) {
         Log.i("BarcodeScanner", "onReadCompleted")
-        byteBuffer?.flip()
-        val bytes = ByteArray(byteBuffer!!.remaining())
-        byteBuffer.get(bytes)
-        responseBuffer.append(String(bytes)) // Append received data
-        byteBuffer.clear()
-        request!!.read(byteBuffer)
+        byteBuffer!!.flip()
+        val bytesRead = byteBuffer.remaining()
 
+        if (bytesRead > 0) {
+            val dataChunk = ByteArray(bytesRead)
+            byteBuffer.get(dataChunk)
+            responseBuffer.append(String(dataChunk, Charsets.UTF_8))
+            byteBuffer.clear()
+            request!!.read(byteBuffer)  // Continue reading only if data is available
+        } else {
+            Log.d("Cronet", "Finished reading response")
+        }
         if (responseBuffer.contains("One or more sku's in the file does not exists in system.")) {
             (context as ScanAndUpdateActivity).runOnUiThread {
                 showErrorDialog("One or more sku's does not exists in system.")
             }
             return
         }
-        Log.i("BarcodeScanner", "responseData  "+ responseBuffer)
-        (context as ScanAndUpdateActivity).runOnUiThread { showSuccessDialog() }
     }
 
     override fun onSucceeded(request: UrlRequest?, info: org.chromium.net.UrlResponseInfo?) {
+        Log.i("BarcodeScanner", "onSucceeded")
         Log.i("BarcodeScanner", "status "+ info!!.httpStatusCode.toString())
+        (context as ScanAndUpdateActivity).runOnUiThread { showSuccessDialog() }
     }
 
     override fun onFailed(
@@ -69,7 +74,7 @@ class PikkmeRequestCallback(var context : Context) : UrlRequest.Callback() {
         error: CronetException?
     ) {
         Log.e("BarcodeScanner", "Request failed: ${error!!.message}", error)
-        showErrorDialog("Request failed: ${error.message}")
+        (context as ScanAndUpdateActivity).runOnUiThread { showErrorDialog("Request failed: ${error.message}") }
     }
 
     private fun showSuccessDialog() {

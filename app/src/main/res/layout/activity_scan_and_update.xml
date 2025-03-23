@@ -39,6 +39,18 @@
         android:divider="@android:color/darker_gray"
         android:dividerHeight="1dp" />
 
+<!--    <EditText-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:id = "@+id/textView"-->
+<!--        />-->
+<!--    <Button-->
+<!--        android:id="@+id/button1"-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:text="ok"-->
+<!--        android:onClick="processScannedResult"-->
+<!--        android:padding="10dp" />-->
 
     <Button
         android:id="@+id/button"

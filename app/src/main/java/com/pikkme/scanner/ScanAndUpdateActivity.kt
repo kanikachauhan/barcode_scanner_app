@@ -60,11 +60,11 @@ class ScanAndUpdateActivity : AppCompatActivity() {
     private lateinit var cronetBuilder : CronetEngine.Builder
     private lateinit var requestBuilder : UrlRequest.Builder
     private lateinit var cronetEngine : CronetEngine
+//    private lateinit var editText: EditText
     private lateinit var operation : String
     private var isScanning = true
     private var successMediaPlayer: MediaPlayer? = null
     private var errorMediaPlayer: MediaPlayer? = null
-    private val timeoutHandler = Handler(Looper.getMainLooper())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -75,6 +75,7 @@ class ScanAndUpdateActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+//        editText = findViewById(R.id.textView)
         previewView = findViewById(R.id.previewView)
         listView = findViewById(R.id.listView)
         successFlashView = findViewById(R.id.successFlashView)
@@ -127,14 +128,14 @@ class ScanAndUpdateActivity : AppCompatActivity() {
         when (operation) {
             "inbound" -> {
                 requestBuilder = cronetEngine.newUrlRequestBuilder(
-                    "http://ec2-13-235-83-46.ap-south-1.compute.amazonaws.com:5000/bulk_update_add_with_data",
+                    "",
                     PikkmeRequestCallback(this),
                     executor
                 )
             }
             "outbound" -> {
                 requestBuilder = cronetEngine.newUrlRequestBuilder(
-                    "http://ec2-13-235-83-46.ap-south-1.compute.amazonaws.com:5000/bulk_update_subtract_with_data",
+                    "",
                     PikkmeRequestCallback(this),
                     executor
                 )
@@ -143,8 +144,8 @@ class ScanAndUpdateActivity : AppCompatActivity() {
         requestBuilder.setHttpMethod("POST")
         requestBuilder.addHeader("Content-Type", "application/json")
         // to be passed here
-        requestBuilder.addHeader("username", "username")
-        requestBuilder.addHeader("token", "TVZKV1pEZDFjekZzWkhad1NXcFFUemswWlhnNE5HcFVVR3R2WXpCU1NVSlRSM0ZSTUhwbk0ySklTM1UxV21SQk5rcFRabE5LTkd0d1MxcGpkSGRvWlE9PQ==")
+        requestBuilder.addHeader("username", "")
+        requestBuilder.addHeader("token", "")
         val jsonString = Gson().toJson(listOfPikkmeItems)
         Log.i("BarcodeScanner", jsonString)
         requestBuilder.setUploadDataProvider(UploadDataProviders.create(jsonString.toByteArray()),executor)
@@ -153,11 +154,6 @@ class ScanAndUpdateActivity : AppCompatActivity() {
             .allowDirectExecutor()
             .build()
         request.start()
-        timeoutHandler.postDelayed({
-            request?.cancel()
-            Log.e("Cronet", "Request manually cancelled after timeout")
-            showErrorDialog("Request timed out")
-        }, 1000)
     }
 
     private fun requestCameraPermission() {
@@ -229,7 +225,7 @@ class ScanAndUpdateActivity : AppCompatActivity() {
         }
     }
 
-    fun processScannedResult(text:String?) {
+    fun processScannedResult(text: String?) {
         try {
             val itemVals = text!!.split(":")
             val sku = itemVals!!.get(0)
